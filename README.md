@@ -35,12 +35,6 @@ Dropped highly correlated variables (like StateMinimumWage and FederalMinimumWag
 
 A lot of economic analysis focuses on isolated variables. This project leans into the complexity, looking across multiple dimensions at once to offer a fuller picture. The goal wasn’t to prove a single point, but to uncover relationships that might otherwise be missed.
 
-## What’s Inside
-
-- `team013report.pdf`: Full report with visuals, methodology, results, and conclusions
-- `notebooks/`: Jupyter notebooks for EDA, modeling, and visualizations
-- `data/`: Preprocessed datasets and data sources
-
 ---
 
 If you’d like to dive deeper or explore the code, feel free to reach out or fork the repo. Always open to feedback and collaborations.

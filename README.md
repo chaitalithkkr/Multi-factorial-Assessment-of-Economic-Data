@@ -1,6 +1,5 @@
 # Multi-factorial Assessment of Economic Data
-
-This project explores how various economic indicators—like minimum wage, interest rates, inflation, housing prices, and employment rates—interact with each other. The goal is to better understand the ripple effects of policy decisions in a real-world, data-driven context.
+This project explores how various economic indicators, like minimum wage, interest rates, inflation, housing prices, and employment rates, interact with each other. The goal is to better understand the ripple effects of policy decisions in a real-world, data-driven context.
 
 ## Project Overview
 
@@ -34,7 +33,7 @@ Dropped highly correlated variables (like StateMinimumWage and FederalMinimumWag
 
 ## Why This Project
 
-A lot of economic analysis focuses on isolated variables. This project leans into the complexity—looking across multiple dimensions at once to offer a fuller picture. The goal wasn’t to prove a single point, but to uncover relationships that might otherwise be missed.
+A lot of economic analysis focuses on isolated variables. This project leans into the complexity, looking across multiple dimensions at once to offer a fuller picture. The goal wasn’t to prove a single point, but to uncover relationships that might otherwise be missed.
 
 ## What’s Inside
 

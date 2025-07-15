@@ -1,0 +1,266 @@
+---
+title: "Multifactorial Assesment of Economic Data"
+author: "Rohan Thorat - 50557738, Amulya Reddy Datla - 50560100, Chaitali Thakkar- 50557808, Jagruthi Reddy Ghanapat - 50560478"
+date: "2024-05-18"
+output: html_document
+---
+
+# 1. Introduction
+
+The dataset `FinalDataSet.csv` contains the following columns:
+- Year
+- State
+- StateMinimumWage
+- FederalMinimumWage
+- EffectiveMinimumWage
+- EffectiveMinimumWage2020Dollars
+- CPIAverage
+- FedFundsRate
+- Gdp
+- HomePriceIndex
+- MortgageRate
+- PopulationGrowth
+- UnemploymentRate
+
+# 2. Data Reading
+
+Read the dataset into a dataframe and display the first 5 rows.
+
+```{r}
+library(readr)
+data <- read_csv("FinalDataSet.csv")
+head(data)
+```
+
+# 3. Data Cleaning
+Clean the data by imputing missing values with the mean and removing duplicates.
+
+```{r}
+# Impute missing values with mean
+data[is.na(data)] <- mean(data, na.rm=TRUE)
+
+# Remove duplicates
+data <- unique(data)
+
+# Check for missing values
+sum(is.na(data))
+```
+
+# 4. Exploratory Data Analysis
+Display the summary statistics of the dataset.  
+Display the Corelation matrix.  
+Identify the top 3 variables that are most correlated with EffectiveMinimumWage.
+
+```{r}
+summary(data)
+
+library(ggplot2)
+library(reshape2)
+
+correlation_matrix <- cor(data[, -c(1, 2)])
+melted_correlation <- melt(correlation_matrix)
+
+ggplot(data = melted_correlation, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+  scale_fill_gradient2(low="blue", high="red", mid="white", midpoint=0) + 
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  labs(title="Correlation Matrix", x="Variable 1", y="Variable 2", fill="Correlation Value")
+
+correlation_values <- correlation_matrix["EffectiveMinimumWage", ]
+top_correlated_variables <- names(sort(correlation_values, decreasing=TRUE)[2:4])
+top_correlated_variables
+
+```
+
+
+# 5. Data Modelling
+
+Split the data into training and testing sets for modeling
+```{r}
+library(caret)
+trainIndex <- createDataPartition(data$EffectiveMinimumWage, p = .8, 
+                                  list = FALSE, 
+                                  times = 1)
+train <- data[ trainIndex,]
+test  <- data[-trainIndex,]
+
+# Remove rows with missing values in the training and testing sets
+train <- train[complete.cases(train), ]
+test <- test[complete.cases(test), ]
+dim(train)
+dim(test)
+```
+
+# 6. Model Building
+
+### 6.1 Base Linear Regression Model
+
+Train a basemodel linear regression model to predict EffectiveMinimumWage using all other variables
+
+```{r}
+base_model <- lm(EffectiveMinimumWage ~ ., data = train)
+
+# mse for thw base model
+
+predictions <- predict(base_model, test)
+base_model_mse <- mean((test$EffectiveMinimumWage - predictions)^2)
+base_model_mse
+```
+
+With the base model now trained we can try to analyze the model to figure out various ways to improve.
+
+Check for Multi-collinearity in the model using Variance Inflation Factor (VIF)
+
+
+```{r}
+library(car)
+vif(base_model)
+```
+
+We can see the VIF values for the following features are high:
+
+- StateMinimumWage
+- FederalMinimumWage
+- CPIAverage
+- Gdp
+
+Since the columns FederalMinimumWage and StateMinimumWage are just engineered features of the EffectiveMinimumWage, we can remove them from the model.
+
+The columns CPIAverage and Gdp even though they have high VIF values, they are important features extracted from different datasets and hence we will keep them in the model.
+
+Drop the columns FederalMinimumWage and StateMinimumWage from the model and retrain the model.
+
+```{r}
+train <- train[, -c(3, 4)]
+test <- test[, -c(3, 4)]  
+
+head(train)
+head(test)
+```
+
+### 6.2 Retrained Improved Linear Regression Model
+
+```{r}
+model <- lm(EffectiveMinimumWage ~ ., data = train)
+```
+
+Calculate the Mean Squared Error (MSE) of the model on the test set and display the model summary
+
+```{r}
+predictions <- predict(model, test)
+mse <- mean((test$EffectiveMinimumWage - predictions)^2)
+summary(model)
+mse
+```
+
+## 6.3 Random Forest Regression Model
+```{r}
+library(randomForest)
+rf_model <- randomForest(EffectiveMinimumWage ~ ., data = train)
+rf_predictions <- predict(rf_model, test)
+rf_mse <- mean((test$EffectiveMinimumWage - rf_predictions)^2)
+rf_mse
+```
+
+## 6.4 Lasso and Ridge Regression 
+
+```{r}
+library(glmnet)
+x_train <- as.matrix(train[, -c(1, 2)])
+y_train <- train$EffectiveMinimumWage
+x_test <- as.matrix(test[, -c(1, 2)])
+y_test <- test$EffectiveMinimumWage
+
+lasso_model <- cv.glmnet(x_train, y_train, alpha = 1)
+lasso_predictions <- predict(lasso_model, s = "lambda.min", newx = x_test)
+lasso_mse <- mean((y_test - lasso_predictions)^2)
+lasso_mse
+
+ridge_model <- cv.glmnet(x_train, y_train, alpha = 0)
+ridge_predictions <- predict(ridge_model, s = "lambda.min", newx = x_test)
+ridge_mse <- mean((y_test - ridge_predictions)^2)
+ridge_mse
+```
+
+## 6.5 20 fold cross validation to find the best alpha value for lasso and ridge regression models
+
+```{r}
+lasso_cv_model <- cv.glmnet(x_train, y_train, alpha = 1, nfolds = 20)
+lasso_cv_alpha <- lasso_cv_model$lambda.min
+lasso_cv_alpha
+
+ridge_cv_model <- cv.glmnet(x_train, y_train, alpha = 0, nfolds = 20)
+ridge_cv_alpha <- ridge_cv_model$lambda.min
+ridge_cv_alpha
+```
+
+### 6.6 Retrain the lasso and ridge models with the best alpha values
+
+```{r}
+lasso_model <- cv.glmnet(x_train, y_train, alpha = 1, lambda = seq(0.001, 1, length = 100))
+ridge_model <- cv.glmnet(x_train, y_train, alpha = 0, lambda = seq(0.001, 1, length = 100))
+
+lasso_predictions <- predict(lasso_model, s = "lambda.min", newx = x_test)
+lasso_mse <- mean((y_test - lasso_predictions)^2)
+lasso_mse
+ridge_predictions <- predict(ridge_model, s = "lambda.min", newx = x_test)
+ridge_mse <- mean((y_test - ridge_predictions)^2)
+ridge_mse
+
+```
+
+### 6.7 Compare the MSE values of the linear regression, random forest, lasso, and ridge models
+
+```{r}
+model_names <- c("Linear Regression", "Random Forest", "Lasso", "Ridge")
+mse_values <- c(mse, rf_mse, lasso_mse, ridge_mse)
+model_comparison <- data.frame(Model = model_names, MSE = mse_values)
+model_comparison
+```
+
+
+
+# 7. BONUS : Time Series Analaysis and Forecasting
+
+Since the data has year column we can use time series analysis to predict the EffectiveMinimumWage for the next few years
+
+
+
+### 7.1 ARIMA Model
+Fit an ARIMA model to predict EffectiveMinimumWage
+
+Split data into training and testing sets with test set being last 20% of the data
+
+```{r}
+train_size <- floor(0.8 * nrow(data))
+train <- data[1:train_size, ]
+test <- data[(train_size + 1):nrow(data), ]
+```
+
+#### Fit an ARIMA model to the training data
+
+```{r}
+library(forecast)
+arima_model <- auto.arima(train$EffectiveMinimumWage)
+arima_model
+```
+
+#### Predict the EffectiveMinimumWage for the test set
+
+```{r}
+arima_predictions <- forecast(arima_model, h = nrow(test))
+
+```
+
+#### Calculate the Mean Squared Error (MSE) of the ARIMA model on the test set
+
+```{r}
+arima_mse <- mean((test$EffectiveMinimumWage - arima_predictions$mean)^2)
+arima_mse
+```
+
+
+
+
+
